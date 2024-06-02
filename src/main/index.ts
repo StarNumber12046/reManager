@@ -63,6 +63,27 @@ async function getOsVersion(_event, keyPath): Promise<string> {
   return escapeAnsi(result.stdout)
 }
 
+async function getExactModel(_event, keyPath): Promise<string> {
+  const ssh = new NodeSSH()
+  await ssh.connect(
+    {
+      host: '10.11.99.1',
+      port: 22,
+      username: 'root',
+      privateKeyPath: keyPath
+    }
+  )
+  const result = await ssh.execCommand('cat /sys/devices/soc0/machine')
+  if (result.code !== 0) {
+    return "Unknown"
+  }
+  if (!(["reMarkable 1.0", "reMarkable 2.0", "reMarkable Prototype 1"].includes(escapeAnsi(result.stdout)))) {
+    return "Unknown"
+  }
+  ssh.dispose()
+  return escapeAnsi(result.stdout)
+}
+
 async function doesSshWork(_event, keyPath): Promise<boolean> {
   const ssh = new NodeSSH()
   try {
@@ -81,6 +102,29 @@ async function doesSshWork(_event, keyPath): Promise<boolean> {
     catch {
       return false
     }
+}
+
+async function getModel(_event, keyPath): Promise<string> {
+  const ssh = new NodeSSH()
+  await ssh.connect(
+    {
+      host: '10.11.99.1',
+      port: 22,
+      username: 'root',
+      privateKeyPath: keyPath
+    }
+  )
+  const result = await ssh.execCommand('cat /sys/devices/soc0/machine')
+  if (result.code !== 0) {
+    return "Unknown"
+  }
+  ssh.dispose()
+  switch (escapeAnsi(result.stdout)) {
+    case "reMarkable 2.0": return "2"
+    case "reMarkable 1.0": return "1"
+    case "reMarkable Prototype 1.0": return "1"
+    default: return "Unknown"
+}
 }
 
 function createWindow(): void {
@@ -150,6 +194,16 @@ app.whenReady().then(() => {
   ipcMain.handle('getOsVersion', async (event, keyPath) => {
     console.log("called IPC getOsVersion");
     return await getOsVersion(event, keyPath);
+  })
+
+  ipcMain.handle('getModel', async (event, keyPath) => {
+    console.log("called IPC getModel");
+    return await getModel(event, keyPath);
+  })
+
+  ipcMain.handle('getExactModel', async (event, keyPath) => {
+    console.log("called IPC getExactModel");
+    return await getExactModel(event, keyPath);
   })
 
 
